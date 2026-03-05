@@ -1,151 +1,121 @@
-<div align=center>
-<h1> GraphEcho: Graph-Driven Unsupervised Domain Adaptation for Echocardiogram Video Segmentation </h1>
-</div>
-<div align=center>
+# Script Sequence
 
-<a src="https://img.shields.io/badge/%F0%9F%93%96-ICCV_2023-8A2BE2.svg?style=flat-square" href="https://arxiv.org/abs/2309.11145">
-<img src="https://img.shields.io/badge/%F0%9F%93%96-ICCV_2023-8A2BE2.svg?style=flat-square">
-</a>
-   
-<a src="https://img.shields.io/badge/%F0%9F%9A%80-xmed_Lab-ed6c00.svg?style=flat-square" href="https://xmengli.github.io/">
-<img src="https://img.shields.io/badge/%F0%9F%9A%80-xmed_Lab-ed6c00.svg?style=flat-square">
-</a>
+This file describes the practical script order that was built during the work on this repository.
 
-<a src="https://img.shields.io/badge/%F0%9F%9A%80-XiaoweiXu's Github-blue.svg?style=flat-square" href="https://github.com/XiaoweiXu/CardiacUDA-dataset">
-<img src="https://img.shields.io/badge/%F0%9F%9A%80-Xiaowei Xu's Github-blue.svg?style=flat-square">
-</a>
+## Main Pipeline
 
-</div>
+1. `tools/unify_datasets.py`
+   - Optional preparation step if raw datasets need to be brought to a more uniform structure first.
+   - Use this before export only if the raw dataset layout is still inconsistent.
 
+2. `tools/export_points_annotations.py`
+   - Reads raw datasets from `datasets/`.
+   - Exports images and polygon point annotations into:
 
-## :hammer: PostScript
-&ensp; :smile: This project is the pytorch implemention of **[[paper](https://arxiv.org/abs/2309.11145)]**;
-
-&ensp; :laughing: Our experimental platform is configured with <u>One *RTX3090 (cuda>=11.0)*</u>; 
-
-&ensp; :blush: Currently, this code is avaliable for public dataset <u>CAMUS and EchoNet</u>;
-
-&ensp; :smiley: For codes and accessment that related to dataset ***CardiacUDA***;
-
-&ensp; &ensp; &ensp;    **:eyes:** The code is now available at:
-&ensp; &ensp; &ensp;       ```
-                            ..\datasets\cardiac_uda.py
-                           ```
-
-&ensp; :heart_eyes: For codes and accessment that related to dataset ***CardiacUDA***
-
-&ensp; &ensp; &ensp;    **:eyes:** Please follw the link to access our dataset：
-
-
-## :computer: Installation
-
-
-1. You need to build the relevant environment first, please refer to : [**requirements.yaml**](requirements.yaml)
-
-2. Install Environment:
-    ```
-    conda env create -f requirements.yaml
-    ```
-
-+ We recommend you to use Anaconda to establish an independent virtual environment, and python > = 3.8.3; 
-
-
-## :blue_book: Data Preparation
-
-### *1. EchoNet & CAMUS*
- * This project provides the use case of echocardiogram video segmentation task;
- * Default dataset roots are resolved from `./datasets`:
-   * `./datasets/CAMUS_public`
-   * `./datasets/EchoNet-Dynamic`
-
- * The hyper parameters setting of the dataset can be found in the **train.py**, where you could do the parameters modification;
-
- * For different tasks, the composition of data sets have significant different, so there is no repetition in this file;
-
-
-   #### *1.1. Download The **CAMUS**.*
-   :speech_balloon: The detail of CAMUS, please refer to: https://www.creatis.insa-lyon.fr/Challenge/camus/index.html/.
-
-   1. Download & Unzip the dataset.
-
-      The ***CAMUS dataset*** is composed as: /testing & /training.
-
-   2. The source code of loading the CAMUS dataset exist in path :
-
-      ```python
-      ..\datasets\camus.py
-      ```
-      Default root used by training code: `./datasets/CAMUS_public`.
-      To override without editing code, set env var `CAMUS_DATASET_ROOT`.
-      New Version : We have updated the infos.npy in our new released code
-
-   #### *1.2. Download The **EchoNet**.*
-
-   :speech_balloon: The detail of EchoNet, please refer to: https://echonet.github.io/dynamic/.
-
-   1. Download & Unzip the dataset.
-
-      - The ***EchoNet*** dataset is consist of: /Video, FileList.csv & VolumeTracings.csv.
-
-   2. The source code of loading the Echonet dataset exist in path :
-
-      ```python
-      ..\datasets\echo.py
-      ```
-      Default root used by training code: `./datasets/EchoNet-Dynamic`.
-      To override without editing code, set env var `ECHONET_DATASET_ROOT`.
-
-## *2. CardiacUDA*
- 1.  Please access the dataset through : [XiaoweiXu's Github](https://github.com/XiaoweiXu/CardiacUDA-dataset)
- 2.  Follw the instruction and download.
- 3.  Finish dataset download and unzip the datasets.
- 4.  Modify your code in both:
-        ```python
-        ..\datasets\cardiac_uda.py
-        ..\train_cardiac_uda.py
-        # The layer of the infos dict should be :
-        # dict{
-        #     center_name: {
-        #                  file: {
-        #                        views_images: {image_path},
-        #                        views_labels: {label_path},}}}
-        ```
-      Default paths used by training code:
-      - dataset root: `./datasets/cardiacUDC_dataset` (or `CARDIAC_UDA_ROOT`)
-      - infos file: `./datasets/infos.npy` (or `CARDIAC_UDA_INFOS`)
-
-## *3. Export Images + Point Annotations*
-If you need PNG images and TXT annotations with contour points from all datasets:
-
-```shell
-python tools/export_points_annotations.py --root . --output export_points
+```text
+export_points/
 ```
 
-Details and format are described in:
-`tools/EXPORT_POINTS_ANNOTATIONS.md`
+3. `tools/filter_left_ventricle_points.py`
+   - Takes `export_points/`.
+   - Keeps only left ventricle annotations.
+   - Produces:
 
-## :feet: Training
+```text
+export_points_lv/
+```
 
-1. In this framework, after the parameters are configured in the file **train_cardiac_uda.py** and **train_camus_echo.py**, you only need to use the command:
+4. `tools/resize_exported_points.py`
+   - Takes `export_points_lv/`.
+   - Normalizes orientation by dataset.
+   - Resizes images to `800x600`.
+   - Recomputes polygon coordinates.
+   - In the current workflow also writes:
+     - class id `0`
+     - normalized coordinates `x / width`, `y / height`
+   - Produces:
 
-    ```shell
-    python train_cardiac_uda.py
-    ```
-    And
-    ```shell
-    python train_camus_echo.py
-    ```
+```text
+export_points_lv_800x600/
+```
 
-2. You are also able to start distributed training. 
+5. `tools/yolo_learning.py`
+   - Trains YOLO segmentation on:
 
-   - **Note:** Please set the number of graphics cards you need and their id in parameter **"enable_GPUs_id"**.
+```text
+export_points_lv_800x600/dataset.yaml
+```
 
-#
+   - Writes training runs into:
 
+```text
+tools/runs/
+```
 
-###### :rocket: Code Reference 
-  - https://github.com/huawei-noah/Efficient-AI-Backbones/tree/master/vig_pytorch
-  - https://github.com/chengchunhsu/EveryPixelMatters 
+## Inference And Validation
 
-###### :rocket: Updates Ver 1.0（PyTorch）
-###### :rocket: Project Created by Jiewen Yang : jyangcu@connect.ust.hk
+6. `tools/yolo_single_test.py`
+   - Runs inference on one image using one trained run from `tools/runs/`.
+   - Saves preview images into:
+
+```text
+tools/runs/inference_preview/
+```
+
+7. `tools/validate_yolo_runs.py`
+   - Runs fresh `model.val()` for trained runs.
+   - Saves post-training validation results into:
+
+```text
+tools/runs/validation_runs/
+```
+
+   - Main summary file:
+
+```text
+tools/runs/validation_runs/validation_summary.csv
+```
+
+## Metrics And Charts
+
+8. `tools/plot_yolo_metrics.py`
+   - Builds charts from training `results.csv`.
+   - Use this if you want metrics exactly as stored during training.
+
+9. `tools/plot_validation_metrics.py`
+   - Builds charts from:
+
+```text
+tools/runs/validation_runs/validation_summary.csv
+```
+
+   - Use this if you want charts from a separate validation pass done after training.
+
+## Recommended Practical Order
+
+If the dataset is already prepared:
+
+1. `tools/filter_left_ventricle_points.py`
+2. `tools/resize_exported_points.py`
+3. `tools/yolo_learning.py`
+4. `tools/yolo_single_test.py`
+5. `tools/validate_yolo_runs.py`
+6. `tools/plot_validation_metrics.py`
+
+If starting from raw source datasets:
+
+1. `tools/unify_datasets.py` (only if needed)
+2. `tools/export_points_annotations.py`
+3. `tools/filter_left_ventricle_points.py`
+4. `tools/resize_exported_points.py`
+5. `tools/yolo_learning.py`
+6. `tools/yolo_single_test.py`
+7. `tools/validate_yolo_runs.py`
+8. `tools/plot_yolo_metrics.py`
+9. `tools/plot_validation_metrics.py`
+
+## Notes
+
+- `plot_yolo_metrics.py` and `plot_validation_metrics.py` are not interchangeable.
+- `yolo_single_test.py` is for spot-check inference.
+- `validate_yolo_runs.py` is the script that produces the new post-training metrics.
